@@ -1,0 +1,11 @@
+using MagasinGestion.Data;
+
+namespace MagasinGestion.Services;
+
+public sealed class CategoryService(SqliteConnectionFactory factory)
+{
+    public long Create(string name, string? description) { if(string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Le nom est obligatoire."); using var db=factory.Create(); using var c=db.CreateCommand(); c.CommandText="INSERT INTO Categorie(Nom,Description) VALUES($n,$d); SELECT last_insert_rowid();"; c.Parameters.AddWithValue("$n",name.Trim()); c.Parameters.AddWithValue("$d",(object?)description??DBNull.Value); try{return Convert.ToInt64(c.ExecuteScalar());}catch(Exception ex) when(ex.Message.Contains("UNIQUE",StringComparison.OrdinalIgnoreCase)){throw new InvalidOperationException("Cette catégorie existe déjà.",ex);} }
+    public void Update(long id, string name, string? description) { using var db=factory.Create(); using var c=db.CreateCommand(); c.CommandText="UPDATE Categorie SET Nom=$n,Description=$d WHERE Id=$i"; c.Parameters.AddWithValue("$n",name.Trim()); c.Parameters.AddWithValue("$d",(object?)description??DBNull.Value); c.Parameters.AddWithValue("$i",id); try{c.ExecuteNonQuery();}catch(Exception ex) when(ex.Message.Contains("UNIQUE",StringComparison.OrdinalIgnoreCase)){throw new InvalidOperationException("Cette catégorie existe déjà.",ex);} }
+    public IReadOnlyList<(long Id,string Name,string? Description)> Search(string? text) { using var db=factory.Create(); using var c=db.CreateCommand(); c.CommandText="SELECT Id,Nom,Description FROM Categorie WHERE $s IS NULL OR Nom LIKE $q ORDER BY Nom"; c.Parameters.AddWithValue("$s",(object?)text??DBNull.Value); c.Parameters.AddWithValue("$q",$"%{text}%"); using var r=c.ExecuteReader(); var result=new List<(long,string,string?)>(); while(r.Read()) result.Add((r.GetInt64(0),r.GetString(1),r.IsDBNull(2)?null:r.GetString(2))); return result; }
+    public void Delete(long id) { using var db=factory.Create(); using var c=db.CreateCommand(); c.CommandText="SELECT EXISTS(SELECT 1 FROM Produit WHERE CategorieId=$i)"; c.Parameters.AddWithValue("$i",id); if(Convert.ToInt32(c.ExecuteScalar())!=0) throw new InvalidOperationException("Suppression interdite : cette catégorie est référencée par des produits."); c.CommandText="DELETE FROM Categorie WHERE Id=$i"; c.ExecuteNonQuery(); }
+}

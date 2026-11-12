@@ -1,0 +1,12 @@
+using MagasinGestion.Data;
+using MagasinGestion.Services;
+
+namespace MagasinGestion.Forms;
+public sealed class NewSaleForm : Form
+{
+    private readonly SaleService sales; private readonly DataGridView cartGrid=new(){Dock=DockStyle.Fill,AutoGenerateColumns=true}; private readonly Dictionary<long,CartLine> cart=[]; private readonly Label total=new(){Text="Total : 0 FCFA",Dock=DockStyle.Bottom,Height=35};
+    public NewSaleForm(SqliteConnectionFactory db,long userId){sales=new(db);Text="Nouvelle vente";Font=new Font("Segoe UI",10);var search=new TextBox{PlaceholderText="Référence ou nom du produit",Dock=DockStyle.Top,Height=32};var add=new Button{Text="Ajouter",Dock=DockStyle.Top,Height=34};var mode=new ComboBox{Dock=DockStyle.Bottom,DropDownStyle=ComboBoxStyle.DropDownList};mode.Items.AddRange(["Espèces","Mobile Money","Carte"]);mode.SelectedIndex=0;var received=new NumericUpDown{Dock=DockStyle.Bottom,Maximum=100000000,DecimalPlaces=2};var validate=new Button{Text="Valider la vente",Dock=DockStyle.Bottom,Height=42};add.Click+=(_,_)=>AddProduct(search.Text);validate.Click+=(_,_)=>Validate(userId,mode.Text,received.Value,validate);Controls.Add(cartGrid);Controls.Add(add);Controls.Add(search);Controls.Add(validate);Controls.Add(received);Controls.Add(mode);Controls.Add(total);}
+    private void AddProduct(string query){using var db=new SqliteConnectionFactory().Create();using var c=db.CreateCommand();c.CommandText="SELECT Id,Reference,Nom FROM Produit WHERE Actif=1 AND (Reference=$q OR Nom LIKE $n) LIMIT 1";c.Parameters.AddWithValue("$q",query);c.Parameters.AddWithValue("$n",$"%{query}%");using var r=c.ExecuteReader();if(!r.Read()){MessageBox.Show("Produit introuvable ou archivé.");return;}var id=r.GetInt64(0);var quantity=cart.TryGetValue(id,out var existing)?existing.Quantity+1:1;cart[id]=new(id,quantity);RefreshCart();}
+    private void RefreshCart(){cartGrid.DataSource=cart.Values.Select(x=>new{x.ProductId=x.ProductId,Quantite=x.Quantity}).ToList();total.Text=$"Total : recalculé à la validation FCFA";}
+    private void Validate(long userId,string mode,decimal received,Button button){if(!button.Enabled)return;button.Enabled=false;try{var result=sales.Validate(userId,cart.Values.ToList(),mode,received,Guid.NewGuid().ToString("N"));MessageBox.Show($"Vente validée. Total : {result.Total:N0} FCFA\nMonnaie : {result.CashChange:N0} FCFA");cart.Clear();RefreshCart();}catch(Exception ex){MessageBox.Show(ex.Message,"Vente non validée",MessageBoxButtons.OK,MessageBoxIcon.Warning);}finally{button.Enabled=true;}}
+}

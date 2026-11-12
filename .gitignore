@@ -1,0 +1,43 @@
+# Build outputs
+bin/
+obj/
+.vs/
+.vscode/
+
+# Local IDE/user files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+*.bak
+~$*
+
+# Local package/cache folders
+.nuget/
+.nugetuser/
+packages/
+
+# Runtime data and production backups
+*.db
+*.db-shm
+*.db-wal
+Backups/
+backups/
+Sauvegardes/
+sauvegardes/
+
+# Secrets and environment files
+.env
+.env.*
+!.env.example
+secrets.json
+appsettings.*.json
+
+# OS files
+.DS_Store
+Thumbs.db
